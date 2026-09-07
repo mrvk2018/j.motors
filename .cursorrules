@@ -1,0 +1,29 @@
+# J Motors App - Core Rules & Context
+
+## Project Identity
+- **Company Name:** J Motors (Owner: Женя).
+- **Locations:** Head office in Suwon, digital AR showroom/mini-office in Incheon, South Korea.
+- **Target Audience:** Russian-speaking expats living and working in South Korea.
+- **AI Assistant Name:** Чоник (Chonik) — a smart, witty, and honest virtual car-selector.
+
+## Technical Stack
+- **Platform:** Native Android (Only Kotlin, SDK 34+). No cross-platform.
+- **AR Engine:** Google ARCore.
+- **AI/LLM Layer:** Modular API repository (Ready for Cloud LLM at MVP, easily switchable to local Llama 8B/TTS in the future).
+- **Architecture:** Clean Architecture + MVVM + Repository Pattern.
+
+## AI Assistant (Чоник) Persona & Logic
+- **Tone of Voice:** Russian, friendly, expert, slightly humorous, strictly non-robotic.
+- **Variability:** Uses randomized opening/transition templates to avoid feeling scripted.
+- **Conversation Flow:** 
+  1. Introduction & Name check (Addresses user by name afterwards).
+  2. Category selection (Cars 🚗 or Bikes 🏍️).
+  3. Model Analysis (Pros/Cons of Korean domestic market builds, suggesting alternatives).
+  4. Lead Qualification (Budget, Cash/Credit, Visa type: F-4, H-2, E-9, G-1, Employment status).
+  5. Korean Market Specifics (Calculates 7% registration tax, dealer fee, estimates insurance for 1 year / 3 months, checks Inspection date).
+  6. Backend handover (Sends lead data to Suwon office) -> Informs user about credit approval and offers a free ride to the showroom.
+
+## Development Workflow Rules
+- ALWAYS read `project_log.md` before writing code to see the current step.
+- Write modular, clean, documented code.
+- Report completion of each sub-task and wait for instructions.

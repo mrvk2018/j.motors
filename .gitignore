@@ -1,0 +1,8 @@
+# Local SDK path and secrets — never commit
+local.properties
+
+.gradle/
+**/build/
+.idea/
+*.iml
+.DS_Store
