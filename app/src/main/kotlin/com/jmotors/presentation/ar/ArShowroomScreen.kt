@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,16 +43,15 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.jmotors.R
 import com.jmotors.domain.model.ai.ChonikEmotion
 import com.jmotors.domain.model.ai.ChonikState
 import com.jmotors.presentation.chonik.ChonikAvatar
@@ -61,6 +61,9 @@ import com.jmotors.presentation.viewmodel.ChonikViewModel
 
 private const val HANDOVER_TAG = "JMotors"
 
+/** Ultra-wide IMAX frame inside each SBS eye (letterboxed on a phone panel). */
+private const val CINEMATIC_ASPECT = 21f / 9f
+
 /** Left / right halves of the XREAL SBS framebuffer. */
 private enum class StereoEye {
     LEFT,
@@ -68,10 +71,7 @@ private enum class StereoEye {
 }
 
 /**
- * Honest SBS 3D showroom: two identical vertical halves, city far, Чоник nearer.
- *
- * Parallax sign: near objects shift nasally (left eye rightward, right eye leftward).
- * Far scenery does the opposite so the megacity recedes behind the avatar.
+ * Native SBS 3D showroom: 21:9 cinematic halves, Solarpunk city far, Go2 hologram near.
  */
 @Composable
 fun ArShowroomScreen(
@@ -79,6 +79,7 @@ fun ArShowroomScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val sessionBackground = remember { EcoBackgroundPool.pickSessionBackground() }
 
     val emotion by viewModel.emotion.collectAsStateWithLifecycle()
     val audioAmplitude by viewModel.audioAmplitude.collectAsStateWithLifecycle()
@@ -88,6 +89,7 @@ fun ArShowroomScreen(
     val isGenerating by viewModel.isGenerating.collectAsStateWithLifecycle()
     val isListening by viewModel.isListening.collectAsStateWithLifecycle()
     val isSpeaking by viewModel.isSpeaking.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     var hasAudioPermission by remember {
         mutableStateOf(context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
@@ -134,9 +136,10 @@ fun ArShowroomScreen(
     }
 
     val dialogueText = when {
+        isGenerating -> "Секунду, думаю…"
+        !errorMessage.isNullOrBlank() -> errorMessage.orEmpty()
         !assistantReply.isNullOrBlank() -> assistantReply.orEmpty()
         chonikState is ChonikState.Greeting -> (chonikState as ChonikState.Greeting).openingLine
-        isGenerating -> "Секунду, думаю…"
         isListening -> "Слушаю тебя — говори."
         else -> "Я рядом. Говори — я слушаю."
     }
@@ -159,6 +162,7 @@ fun ArShowroomScreen(
     Row(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         StereoEyePane(
             eye = StereoEye.LEFT,
+            backgroundRes = sessionBackground,
             emotion = emotion,
             audioAmplitude = audioAmplitude,
             dialogueText = dialogueText,
@@ -167,6 +171,7 @@ fun ArShowroomScreen(
         )
         StereoEyePane(
             eye = StereoEye.RIGHT,
+            backgroundRes = sessionBackground,
             emotion = emotion,
             audioAmplitude = audioAmplitude,
             dialogueText = dialogueText,
@@ -179,6 +184,7 @@ fun ArShowroomScreen(
 @Composable
 private fun StereoEyePane(
     eye: StereoEye,
+    backgroundRes: Int,
     emotion: ChonikEmotion,
     audioAmplitude: Float,
     dialogueText: String,
@@ -189,66 +195,76 @@ private fun StereoEyePane(
     val avatarParallax = stereoOffset(eye, far = false, amount = AVATAR_PARALLAX)
     val plateParallax = stereoOffset(eye, far = false, amount = DIALOGUE_PARALLAX)
     val statusParallax = stereoOffset(eye, far = false, amount = STATUS_PARALLAX)
-    val highlightBias = if (eye == StereoEye.LEFT) -1f else 1f
 
-    Box(modifier = modifier.clipToBounds()) {
-        EcoCityBackdrop(horizontalOffset = cityParallax)
-
-        Column(
+    Box(
+        modifier = modifier.background(Color.Black),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
             modifier = Modifier
-                .align(Alignment.Center)
-                .offset(x = avatarParallax)
-                .widthIn(max = 280.dp)
-                .padding(horizontal = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .fillMaxWidth()
+                .aspectRatio(CINEMATIC_ASPECT)
+                .clipToBounds(),
         ) {
-            ChonikAvatar(
-                emotion = emotion,
-                audioAmplitude = audioAmplitude,
-                size = 150.dp,
-                stereoHighlightBias = highlightBias,
-            )
-            Spacer(modifier = Modifier.height(10.dp))
+            SolarpunkBackdrop(backgroundRes = backgroundRes, horizontalOffset = cityParallax)
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .offset(x = avatarParallax)
+                    .widthIn(max = 300.dp)
+                    .padding(horizontal = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                ChonikAvatar(
+                    emotion = emotion,
+                    audioAmplitude = audioAmplitude,
+                    size = 118.dp,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                HolographicPlate(
+                    text = dialogueText,
+                    emotion = emotion,
+                    modifier = Modifier.offset(x = plateParallax - avatarParallax),
+                )
+            }
+
             HolographicPlate(
-                text = dialogueText,
+                text = statusText,
                 emotion = emotion,
-                modifier = Modifier.offset(x = plateParallax - avatarParallax),
+                compact = true,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 8.dp)
+                    .offset(x = statusParallax),
             )
         }
-
-        HolographicPlate(
-            text = statusText,
-            emotion = emotion,
-            compact = true,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 18.dp)
-                .offset(x = statusParallax),
-        )
     }
 }
 
 @Composable
-private fun EcoCityBackdrop(horizontalOffset: Dp) {
+private fun SolarpunkBackdrop(
+    backgroundRes: Int,
+    horizontalOffset: Dp,
+) {
     Box(modifier = Modifier.fillMaxSize()) {
         Image(
-            painter = painterResource(id = R.drawable.eco_city_future),
+            painter = painterResource(id = backgroundRes),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             alignment = Alignment.Center,
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    // Extra scale so SBS crop + parallax never flash black edges.
-                    scaleX = 1.18f
-                    scaleY = 1.18f
+                    scaleX = 1.16f
+                    scaleY = 1.16f
                     translationX = horizontalOffset.toPx()
                 },
         )
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF031018).copy(alpha = 0.28f)),
+                .background(Color(0xFF03181C).copy(alpha = 0.18f)),
         )
     }
 }
@@ -313,7 +329,7 @@ private fun PermissionGate(
 }
 
 /**
- * @param far true = uncrossed (city recedes); false = crossed (object pops toward the user).
+ * @param far true = uncrossed (city recedes); false = crossed (hologram pops toward the user).
  */
 private fun stereoOffset(eye: StereoEye, far: Boolean, amount: Dp): Dp {
     val leftward = if (eye == StereoEye.LEFT) -1 else 1
@@ -321,7 +337,7 @@ private fun stereoOffset(eye: StereoEye, far: Boolean, amount: Dp): Dp {
     return amount * direction
 }
 
-private val CITY_PARALLAX = 16.dp
-private val AVATAR_PARALLAX = 22.dp
-private val DIALOGUE_PARALLAX = 18.dp
-private val STATUS_PARALLAX = 12.dp
+private val CITY_PARALLAX = 10.dp
+private val AVATAR_PARALLAX = 20.dp
+private val DIALOGUE_PARALLAX = 16.dp
+private val STATUS_PARALLAX = 11.dp

@@ -63,12 +63,17 @@ class ChonikSttManager(
 
     fun stopListening() {
         runOnMain {
+            val wasListening = listening
             listening = false
             onListeningChanged(false)
-            try {
-                recognizer?.stopListening()
-            } catch (error: Exception) {
-                Log.w(TAG, "stopListening: ${error.message}")
+            // After onResults the engine is already idle. Calling stopListening()
+            // there raises ERROR_CLIENT (5) and a retry that fights Gemini.
+            if (wasListening) {
+                try {
+                    recognizer?.stopListening()
+                } catch (error: Exception) {
+                    Log.w(TAG, "stopListening: ${error.message}")
+                }
             }
             restoreAudioRoute()
         }
@@ -123,9 +128,14 @@ class ChonikSttManager(
         }
 
         override fun onError(error: Int) {
+            val wasListening = listening
             listening = false
             onListeningChanged(false)
-            Log.w(TAG, "onError code=$error")
+            Log.w(TAG, "onError code=$error listeningWas=$wasListening")
+            if (!wasListening && error == SpeechRecognizer.ERROR_CLIENT) {
+                restoreAudioRoute()
+                return
+            }
             if (error == SpeechRecognizer.ERROR_CLIENT || error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY) {
                 recreateRecognizer()
             }
@@ -161,23 +171,31 @@ class ChonikSttManager(
     }
 
     /**
-     * SpeechRecognizer uses the voice-call path. On XREAL that path stays on the
-     * phone earpiece unless we pin the USB headset as the communication device.
+     * SpeechRecognizer records the voice-call path. Pin XREAL USB mics via
+     * [AudioManager.getDevices] + [AudioManager.setCommunicationDevice].
      */
     private fun routeCaptureToHeadset() {
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
         audioManager.isMicrophoneMute = false
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
-        val devices = audioManager.availableCommunicationDevices
-        Log.i(TAG, "comm devices: " + devices.joinToString { "${it.productName}:${it.type}" })
-        val headset = devices.firstOrNull { it.type.isHeadsetInput() }
+        val inputs = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+        Log.i(TAG, "GET_DEVICES_INPUTS: " + inputs.joinToString { "${it.productName}:${it.type}" })
+        val headset = inputs.firstOrNull { it.type.isPreferredHeadsetMic() }
+            ?: inputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_USB_DEVICE }
         if (headset == null) {
-            Log.w(TAG, "no USB/wired headset in communication devices")
+            Log.w(TAG, "no TYPE_USB_HEADSET / TYPE_WIRED_HEADSET in GET_DEVICES_INPUTS")
             return
         }
-        val ok = audioManager.setCommunicationDevice(headset)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            routedToHeadset = true
+            Log.i(TAG, "pre-S MODE_IN_COMMUNICATION for ${headset.productName} type=${headset.type}")
+            return
+        }
+        val candidate = audioManager.availableCommunicationDevices.firstOrNull { comm ->
+            comm.id == headset.id || comm.type == headset.type
+        } ?: headset
+        val ok = audioManager.setCommunicationDevice(candidate)
         routedToHeadset = ok
-        Log.i(TAG, "setCommunicationDevice ${headset.productName} type=${headset.type} ok=$ok")
+        Log.i(TAG, "priority capture ${candidate.productName} type=${candidate.type} ok=$ok")
     }
 
     private fun restoreAudioRoute() {
@@ -188,10 +206,8 @@ class ChonikSttManager(
         audioManager.mode = AudioManager.MODE_NORMAL
     }
 
-    private fun Int.isHeadsetInput(): Boolean = this == AudioDeviceInfo.TYPE_USB_HEADSET ||
-        this == AudioDeviceInfo.TYPE_USB_DEVICE ||
-        this == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
-        this == AudioDeviceInfo.TYPE_BLE_HEADSET
+    private fun Int.isPreferredHeadsetMic(): Boolean =
+        this == AudioDeviceInfo.TYPE_USB_HEADSET || this == AudioDeviceInfo.TYPE_WIRED_HEADSET
 
     private fun recreateRecognizer() {
         try {

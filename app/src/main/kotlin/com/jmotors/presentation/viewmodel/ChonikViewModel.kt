@@ -91,6 +91,7 @@ class ChonikViewModel @JvmOverloads constructor(
 
     fun pauseVoiceLoop() {
         voiceLoopEnabled = false
+        mainHandler.removeCallbacks(listenRetry)
         ttsManager.stop()
         sttManager.stopListening()
         _isSpeaking.value = false
@@ -184,13 +185,15 @@ class ChonikViewModel @JvmOverloads constructor(
     }
 
     private fun generateReply(userMessage: String) {
+        mainHandler.removeCallbacks(listenRetry)
         sttManager.stopListening()
         ttsManager.stop()
         _isListening.value = false
         _isSpeaking.value = false
+        _isGenerating.value = true
+        _errorMessage.value = null
+        Log.i("JMotors", "Gemini start: $userMessage")
         viewModelScope.launch {
-            _isGenerating.value = true
-            _errorMessage.value = null
             _emotion.value = ChonikEmotion.CALM
             _audioAmplitude.value = 0f
             runCatching {
@@ -203,15 +206,18 @@ class ChonikViewModel @JvmOverloads constructor(
                 val parsed = parseEmotionTag(rawReply)
                 _emotion.value = parsed.emotion
                 _assistantReply.value = parsed.visibleText
+                _errorMessage.value = null
                 _isGenerating.value = false
+                Log.i("JMotors", "Gemini ok, speak ${parsed.visibleText.length} chars")
                 speakThenListen(parsed.visibleText)
             }.onFailure { error ->
-                _errorMessage.value = error.message ?: "Не удалось получить ответ Чоника"
+                Log.e("JMotors", "Gemini failed: ${error.message}", error)
+                val spoken = "Сейчас не достучался до Gemini. Повтори, пожалуйста."
+                _errorMessage.value = error.message ?: spoken
                 _emotion.value = ChonikEmotion.CALM
                 _isGenerating.value = false
-                listenForUser()
+                speakThenListen(spoken)
             }
-            _isGenerating.value = false
         }
     }
 

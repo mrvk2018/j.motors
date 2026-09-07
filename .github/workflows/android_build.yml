@@ -26,7 +26,7 @@ jobs:
     - name: Create Mock Local Properties
       run: |
         echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
-        echo "gemini.api.key=MOCK_KEY_FOR_BUILD" >> local.properties
+        echo "gemini.api.key=${{ secrets.GEMINI_API_KEY }}" >> local.properties
 
     - name: Build Debug APK
       env:
