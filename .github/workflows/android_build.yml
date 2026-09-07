@@ -29,7 +29,10 @@ jobs:
         echo "gemini.api.key=MOCK_KEY_FOR_BUILD" >> local.properties
 
     - name: Build Debug APK
-      run: ./gradlew assembleDebug
+      env:
+        _JAVA_OPTIONS: "-Xmx2048m -Xms512m"
+        GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2048m"
+      run: ./gradlew assembleDebug --no-daemon
 
     - name: Upload Debug APK Artifact
       uses: actions/upload-artifact@v4

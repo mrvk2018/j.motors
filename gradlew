@@ -42,7 +42,7 @@ else
     JAVACMD=java
 fi
 
-DEFAULT_JVM_OPTS='-Dfile.encoding=UTF-8 "-Xmx64m" "-Xms64m"'
+DEFAULT_JVM_OPTS="-Dfile.encoding=UTF-8"
 
 exec "$JAVACMD" $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS \
     "-Dorg.gradle.appname=$APP_BASE_NAME" \
