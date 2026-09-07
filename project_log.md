@@ -2,17 +2,18 @@
 
 ## Current Status
 
-- **Step:** 10 complete — local development phase closed
-- **Phase:** GitHub remote + Android CI (GitHub Actions)
+- **Step:** 10 hotfix complete — CI Java memory options
+- **Phase:** GitHub Actions Android CI
 - **Done:**
-  - Full MVP: Clean Architecture, Чоник voice loop, ARCore showroom, Gemini via BuildConfig
-  - `.github/workflows/android_build.yml` (assembleDebug + APK artifact)
-  - Code pushed to https://github.com/mrvk2018/j.motors.git (`main`)
+  - Full MVP on `main`: https://github.com/mrvk2018/j.motors.git
+  - CI `Build Debug APK` uses `_JAVA_OPTIONS` / `GRADLE_OPTS` and `--no-daemon`
+  - `gradlew` no longer passes quoted `-Xmx64m` (that was parsed as a Java class name)
 - **Not done:** real backend lead API
 - **Context:** `.cursorrules` is the source of truth for J Motors identity, stack, and Чоник persona/conversation flow
 
 ## Action History
 
+- **2026-09-07 — Step 10 hotfix:** CI assembleDebug failed with `Could not find or load main class "-Xmx64m"`. Set clean Java/Gradle memory env on the Build Debug APK step and removed quoted heap args from `gradlew`. Pushed to `main` (`dca8eda`).
 - **2026-09-07 — Step 10:** Added GitHub Actions Android CI, initial commit, and push to `https://github.com/mrvk2018/j.motors.git`. Local development phase complete.
 - **2026-09-07 — Step 9:** Added hands-free voice loop: `ChonikSttManager` (SpeechRecognizer, ru-RU free-form) and `ChonikTtsManager` (TextToSpeech, Locale ru). ViewModel speaks Gemini replies, drives `_audioAmplitude`, then restarts the mic. AR overlay unchanged aside from mic permission and status labels.
 - **2026-09-07 — Step 8:** Wired the real Gemini key through `local.properties` → Gradle `buildConfigField` → `BuildConfig.GEMINI_API_KEY`. Enabled `buildFeatures.buildConfig`. `AiRepositoryImpl` no longer uses `YOUR_GEMINI_API_KEY`. `local.properties` is gitignored.
