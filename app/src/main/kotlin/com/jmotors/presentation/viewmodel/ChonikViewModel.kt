@@ -11,6 +11,7 @@ import com.jmotors.core.util.ChonikTtsManager
 import com.jmotors.data.repository.AiRepositoryImpl
 import com.jmotors.domain.model.ai.ChonikEmotion
 import com.jmotors.domain.model.ai.ChonikState
+import com.jmotors.domain.model.ai.LeadFactExtractor
 import com.jmotors.domain.model.ai.PaymentMethod
 import com.jmotors.domain.model.ai.UserProfile
 import com.jmotors.domain.model.ai.VehicleCategory
@@ -83,6 +84,7 @@ class ChonikViewModel @JvmOverloads constructor(
         if (!greetingSpoken && greeting != null && _assistantReply.value.isNullOrBlank()) {
             greetingSpoken = true
             _assistantReply.value = greeting
+            aiRepository.recordOpeningLine(greeting)
             speakThenListen(greeting)
         } else {
             listenForUser()
@@ -161,6 +163,9 @@ class ChonikViewModel @JvmOverloads constructor(
     fun sendUserMessage(text: String) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
+        val (profile, state) = LeadFactExtractor.absorb(trimmed, _userProfile.value, _state.value)
+        _userProfile.value = profile
+        _state.value = state
         generateReply(trimmed)
     }
 
@@ -275,6 +280,7 @@ class ChonikViewModel @JvmOverloads constructor(
     override fun onCleared() {
         mainHandler.removeCallbacks(listenRetry)
         pauseVoiceLoop()
+        aiRepository.clearSession()
         ttsManager.shutdown()
         sttManager.destroy()
         super.onCleared()
@@ -290,9 +296,9 @@ class ChonikViewModel @JvmOverloads constructor(
             Regex("""\[EMOTION:\s*(CALM|JOY|WARNING|SARCASM|DELIGHT)\s*\]""", RegexOption.IGNORE_CASE)
 
         val GREETING_POOL: List<String> = listOf(
-            "Привет! Я Чоник из J Motors — давай честно разберёмся, какая машина в Корее тебе реально подойдёт, а не та, что красиво блестит на фото. Как тебя зовут?",
-            "О, живой человек, а не очередной «просто смотрю». Я Чоник. Если ищем авто или байк без сказок про идеальный вариант — ты по адресу. Как к тебе обращаться?",
-            "Добрый день! Чоник на связи. Я не робот-продажник: сначала спрошу, кто ты и что тебе нужно, и только потом посчитаем корейские налоги. Как тебя зовут?",
+            "Привет! Я Чоник из J Motors — честно подберём авто под Корею, без сказок. Как тебя зовут?",
+            "О, живой человек. Я Чоник, робопёс-подборщик. Как к тебе обращаться?",
+            "Чоник на связи. Сначала кто ты, потом корейские налоги. Как тебя зовут?",
         )
     }
 }

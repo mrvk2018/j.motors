@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -61,9 +60,6 @@ import com.jmotors.presentation.viewmodel.ChonikViewModel
 
 private const val HANDOVER_TAG = "JMotors"
 
-/** Ultra-wide IMAX frame inside each SBS eye (letterboxed on a phone panel). */
-private const val CINEMATIC_ASPECT = 21f / 9f
-
 /** Left / right halves of the XREAL SBS framebuffer. */
 private enum class StereoEye {
     LEFT,
@@ -71,7 +67,7 @@ private enum class StereoEye {
 }
 
 /**
- * Native SBS 3D showroom: 21:9 cinematic halves, Solarpunk city far, Go2 hologram near.
+ * Native SBS 3D showroom: full-bleed halves on XREAL, Solarpunk far, Go2 hologram near.
  */
 @Composable
 fun ArShowroomScreen(
@@ -196,49 +192,39 @@ private fun StereoEyePane(
     val plateParallax = stereoOffset(eye, far = false, amount = DIALOGUE_PARALLAX)
     val statusParallax = stereoOffset(eye, far = false, amount = STATUS_PARALLAX)
 
-    Box(
-        modifier = modifier.background(Color.Black),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
+    Box(modifier = modifier.fillMaxSize().clipToBounds()) {
+        SolarpunkBackdrop(backgroundRes = backgroundRes, horizontalOffset = cityParallax)
+
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(CINEMATIC_ASPECT)
-                .clipToBounds(),
+                .align(Alignment.Center)
+                .offset(x = avatarParallax)
+                .widthIn(max = 360.dp)
+                .padding(horizontal = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            SolarpunkBackdrop(backgroundRes = backgroundRes, horizontalOffset = cityParallax)
-
-            Column(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .offset(x = avatarParallax)
-                    .widthIn(max = 300.dp)
-                    .padding(horizontal = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                ChonikAvatar(
-                    emotion = emotion,
-                    audioAmplitude = audioAmplitude,
-                    size = 118.dp,
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                HolographicPlate(
-                    text = dialogueText,
-                    emotion = emotion,
-                    modifier = Modifier.offset(x = plateParallax - avatarParallax),
-                )
-            }
-
-            HolographicPlate(
-                text = statusText,
+            ChonikAvatar(
                 emotion = emotion,
-                compact = true,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 8.dp)
-                    .offset(x = statusParallax),
+                audioAmplitude = audioAmplitude,
+                size = 176.dp,
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            HolographicPlate(
+                text = dialogueText,
+                emotion = emotion,
+                modifier = Modifier.offset(x = plateParallax - avatarParallax),
             )
         }
+
+        HolographicPlate(
+            text = statusText,
+            emotion = emotion,
+            compact = true,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 14.dp)
+                .offset(x = statusParallax),
+        )
     }
 }
 

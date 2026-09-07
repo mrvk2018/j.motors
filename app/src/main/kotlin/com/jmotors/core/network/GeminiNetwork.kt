@@ -17,6 +17,12 @@ object GeminiNetwork {
     /** MVP flash model; switch to gemini-2.5-flash-lite if quota is tighter. */
     const val MODEL: String = "gemini-2.5-flash"
 
+    /** User+model turns kept in the live chat cache (opening pair is always retained). */
+    const val MAX_HISTORY_MESSAGES: Int = 28
+
+    /** Caps TTS length: Chonik must stay punchy, not essay-length. */
+    const val MAX_OUTPUT_TOKENS: Int = 160
+
     private const val TAG = "JMotors"
 
     val api: GeminiApiService by lazy {

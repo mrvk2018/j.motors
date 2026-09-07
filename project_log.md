@@ -2,20 +2,20 @@
 
 ## Current Status
 
-- **Step:** 12 — Premium Sci-Fi overhaul (local commit, not pushed)
-- **Phase:** Native SBS 21:9 + Go2 hologram + XREAL USB mic + GitHub secret key
+- **Step:** 13 — MVP bugfix pack (local, staged, not pushed)
+- **Phase:** Chat memory + short TTS + full-bleed SBS + detailed Go2
 - **Done:**
-  - STT capture prefers `GET_DEVICES_INPUTS` USB/wired headset (XREAL) via `setCommunicationDevice`
-  - Cinematic 21:9 letterbox per SBS eye (black IMAX cache)
-  - Solarpunk background pool (4 bright 4K plates, random per session, uncrossed parallax)
-  - `ChonikAvatar` is a neon Unitree Go2 wireframe with TTS mouth lip-sync
-  - CI `local.properties` reads `secrets.GEMINI_API_KEY`
-- **Not done:** git push / GitHub Actions cloud build; real backend lead API; car-model discussion logic
+  - Gemini session cache: full `contents` history, not isolated prompts
+  - System prompt: 2–3 short sentences, energetic robo-dog
+  - SBS viewport fills the display (letterbox/каше removed)
+  - Unitree Go2 wireframe with BlurMaskFilter glow and amplitude lip-sync
+  - Funnel facts (name, visa, budget, credit) extracted from STT into `UserProfile` / `ChonikState`
+- **Not done:** git push; real backend lead API
 - **Context:** `.cursorrules` is the source of truth for J Motors identity, stack, and Чоник persona/conversation flow
 
 ## Action History
 
-- **2026-09-07 — Step 12:** Premium Sci-Fi overhaul committed locally (no push): XREAL USB mic routing via `GET_DEVICES_INPUTS`, 21:9 SBS letterbox, Solarpunk background pool, holographic Unitree Go2 avatar with amplitude lip-sync, GitHub secret for Gemini. Night city texture removed.
+- **2026-09-08 — Step 13:** Packaged MVP fix (staged, no push): Gemini chat history session, brevity system prompt, full-bleed SBS (no letterbox), detailed Go2 hologram with BlurMaskFilter, STT → funnel fact extractor (name / F-4 H-2 E-9 G-1 / budget / credit).
 - **2026-09-07 — Step 11 hotfix:** Voice loop: STT heard «меня зовут Влад» but Gemini died in <1s (CI APK baked `MOCK_KEY_FOR_BUILD`). Errors were not shown. Stopped calling `SpeechRecognizer.stopListening()` after `onResults` (that caused ERROR_CLIENT 5 and a STT retry). Surface Gemini errors on the plate and in logcat.
 - **2026-09-07 — Step 11:** Replaced ARCore camera/planes with native stereoscopic SBS 3D. Screen splits left/right for XREAL Air 2 Pro. Eco-city background uses uncrossed parallax (far); `ChonikAvatar` + holographic dialogue use crossed parallax (near). Radial highlight on the sphere shifts left/right per eye so the orb has volume. Manifest no longer requires camera/ARCore; `com.google.ar:core` removed. Version `0.5.0` (versionCode 5).
 - **2026-09-07 — Step 10 hotfix:** CI assembleDebug failed with `Could not find or load main class "-Xmx64m"`. Set clean Java/Gradle memory env on the Build Debug APK step and removed quoted heap args from `gradlew`. Pushed to `main` (`dca8eda`).
