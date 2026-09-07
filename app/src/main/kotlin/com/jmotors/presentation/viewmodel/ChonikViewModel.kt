@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Dialogue, Gemini, emotion, and the glasses voice loop (STT → think → TTS → listen).
- * AR camera stays in [com.jmotors.presentation.ar.ArShowroomScreen].
+ * SBS 3D layout lives in [com.jmotors.presentation.ar.ArShowroomScreen].
  */
 class ChonikViewModel @JvmOverloads constructor(
     application: Application,
@@ -75,7 +75,7 @@ class ChonikViewModel @JvmOverloads constructor(
         sttManager.initialize()
     }
 
-    /** Call from the AR screen after RECORD_AUDIO is granted. */
+    /** Call from the showroom after RECORD_AUDIO is granted. */
     fun startVoiceLoop() {
         if (voiceLoopEnabled) return
         voiceLoopEnabled = true
@@ -168,11 +168,13 @@ class ChonikViewModel @JvmOverloads constructor(
     }
 
     private fun onUserSpeech(text: String) {
+        Log.i("JMotors", "STT heard: $text")
         if (!voiceLoopEnabled || _isSpeaking.value || _isGenerating.value) return
         sendUserMessage(text)
     }
 
     private fun onSttError(message: String) {
+        Log.w("JMotors", "STT error: $message")
         if (message != "retry" && message.isNotBlank() && message != "empty") {
             _errorMessage.value = message
         }
@@ -227,19 +229,24 @@ class ChonikViewModel @JvmOverloads constructor(
             onComplete = {
                 _isSpeaking.value = false
                 _audioAmplitude.value = 0f
-                listenForUser()
+                // Let TTS release the mic / audio focus before STT starts.
+                mainHandler.postDelayed({ listenForUser() }, 800)
             },
         )
     }
 
     private fun listenForUser() {
-        if (!voiceLoopEnabled || _isSpeaking.value || _isGenerating.value) return
+        if (!voiceLoopEnabled || _isSpeaking.value || _isGenerating.value) {
+            Log.d("JMotors", "STT skip listen enabled=$voiceLoopEnabled speaking=${_isSpeaking.value} generating=${_isGenerating.value}")
+            return
+        }
+        Log.i("JMotors", "STT listenForUser")
         sttManager.startListening()
     }
 
     private fun scheduleListenRetry() {
         mainHandler.removeCallbacks(listenRetry)
-        mainHandler.postDelayed(listenRetry, 450)
+        mainHandler.postDelayed(listenRetry, 1_200)
     }
 
     private val listenRetry = Runnable { listenForUser() }

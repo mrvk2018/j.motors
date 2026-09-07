@@ -8,7 +8,7 @@
 
 ## Technical Stack
 - **Platform:** Native Android (Only Kotlin, SDK 34+). No cross-platform.
-- **AR Engine:** Google ARCore.
+- **3D Display:** Native Side-by-Side (SBS) stereoscopic Compose for XREAL Air 2 Pro. No ARCore / camera planes.
 - **AI/LLM Layer:** Modular API repository (Ready for Cloud LLM at MVP, easily switchable to local Llama 8B/TTS in the future).
 - **Architecture:** Clean Architecture + MVVM + Repository Pattern.
 

@@ -23,8 +23,8 @@ android {
         applicationId = "com.jmotors"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 5
+        versionName = "0.5.0"
         buildConfigField("String", "GEMINI_API_KEY", "\"${project.findProperty("gemini.api.key") ?: ""}\"")
     }
 
@@ -44,9 +44,6 @@ android {
 }
 
 dependencies {
-    // ARCore — current stable (1.41.0+); Google Play Services for AR on device
-    implementation("com.google.ar:core:1.54.0")
-
     // Lifecycle & ViewModel — MVVM for Compose
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")

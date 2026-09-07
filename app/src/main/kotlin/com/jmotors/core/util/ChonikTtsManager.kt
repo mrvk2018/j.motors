@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import android.util.Log
 import java.util.Locale
 import kotlin.math.sqrt
 
@@ -50,6 +51,7 @@ class ChonikTtsManager(
                 tts?.setSpeechRate(1.03f)
                 tts?.setPitch(1.02f)
                 tts?.setOnUtteranceProgressListener(progressListener)
+                Log.i("JMotors", "TTS ready")
             }
             onReady(ready)
             pendingText?.let { queued ->
@@ -110,6 +112,7 @@ class ChonikTtsManager(
         }
 
         override fun onDone(utteranceId: String?) {
+            Log.i("JMotors", "TTS onDone")
             finishSpeaking()
         }
 

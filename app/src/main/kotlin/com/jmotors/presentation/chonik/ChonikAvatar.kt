@@ -30,6 +30,11 @@ fun ChonikAvatar(
     modifier: Modifier = Modifier,
     audioAmplitude: Float = 0f,
     size: Dp = 220.dp,
+    /**
+     * SBS highlight bias: `-1` left eye (specular left), `+1` right eye (specular right).
+     * Zero keeps a slight upper-left studio highlight for previews.
+     */
+    stereoHighlightBias: Float = 0f,
 ) {
     val coreColor by animateColorAsState(
         targetValue = emotion.coreColor(),
@@ -77,8 +82,13 @@ fun ChonikAvatar(
     ) {
         val radius = this.size.minDimension / 2f
         val center = Offset(this.size.width / 2f, this.size.height / 2f)
+        val highlightShift = if (stereoHighlightBias == 0f) {
+            -radius * 0.22f
+        } else {
+            radius * 0.20f * stereoHighlightBias
+        }
         val highlightCenter = Offset(
-            x = center.x - radius * 0.22f,
+            x = center.x + highlightShift,
             y = center.y - radius * 0.28f,
         )
 
@@ -125,7 +135,7 @@ fun ChonikAvatar(
     }
 }
 
-private fun ChonikEmotion.coreColor(): Color = when (this) {
+internal fun ChonikEmotion.coreColor(): Color = when (this) {
     ChonikEmotion.CALM -> Color(0xFF00E5FF)
     ChonikEmotion.JOY -> Color(0xFF00E676)
     ChonikEmotion.WARNING -> Color(0xFFFFC107)
@@ -133,7 +143,7 @@ private fun ChonikEmotion.coreColor(): Color = when (this) {
     ChonikEmotion.DELIGHT -> Color(0xFFE040FB)
 }
 
-private fun ChonikEmotion.glowColor(): Color = when (this) {
+internal fun ChonikEmotion.glowColor(): Color = when (this) {
     ChonikEmotion.CALM -> Color(0xFF00BCD4)
     ChonikEmotion.JOY -> Color(0xFF00C853)
     ChonikEmotion.WARNING -> Color(0xFFFF9800)
@@ -141,7 +151,7 @@ private fun ChonikEmotion.glowColor(): Color = when (this) {
     ChonikEmotion.DELIGHT -> Color(0xFFAA00FF)
 }
 
-private fun ChonikEmotion.highlightColor(): Color = when (this) {
+internal fun ChonikEmotion.highlightColor(): Color = when (this) {
     ChonikEmotion.CALM -> Color(0xFFB2EBF2)
     ChonikEmotion.JOY -> Color(0xFFB9F6CA)
     ChonikEmotion.WARNING -> Color(0xFFFFF8E1)

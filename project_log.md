@@ -2,17 +2,20 @@
 
 ## Current Status
 
-- **Step:** 10 hotfix complete — CI Java memory options
-- **Phase:** GitHub Actions Android CI
+- **Step:** 11 — Native SBS 3D showroom (XREAL Air 2 Pro)
+- **Phase:** Stereoscopic Side-by-Side layout; voice loop unchanged
 - **Done:**
-  - Full MVP on `main`: https://github.com/mrvk2018/j.motors.git
-  - CI `Build Debug APK` uses `_JAVA_OPTIONS` / `GRADLE_OPTS` and `--no-daemon`
-  - `gradlew` no longer passes quoted `-Xmx64m` (that was parsed as a Java class name)
-- **Not done:** real backend lead API
+  - ARCore, camera feed, and plane/anchor overlay removed from the app
+  - `ArShowroomScreen` is a true SBS framebuffer: two equal vertical halves
+  - Eco-city texture (`eco_city_future`) with far-plane parallax; Чоник nearer than the city
+  - Avatar specular highlight is stereo-biased per eye; holographic plates follow emotion neon
+  - Voice STT/TTS and Gemini funnel logic are unchanged (car-model logic still not written)
+- **Not done:** real backend lead API; car-model discussion logic
 - **Context:** `.cursorrules` is the source of truth for J Motors identity, stack, and Чоник persona/conversation flow
 
 ## Action History
 
+- **2026-09-07 — Step 11:** Replaced ARCore camera/planes with native stereoscopic SBS 3D. Screen splits left/right for XREAL Air 2 Pro. Eco-city background uses uncrossed parallax (far); `ChonikAvatar` + holographic dialogue use crossed parallax (near). Radial highlight on the sphere shifts left/right per eye so the orb has volume. Manifest no longer requires camera/ARCore; `com.google.ar:core` removed. Version `0.5.0` (versionCode 5).
 - **2026-09-07 — Step 10 hotfix:** CI assembleDebug failed with `Could not find or load main class "-Xmx64m"`. Set clean Java/Gradle memory env on the Build Debug APK step and removed quoted heap args from `gradlew`. Pushed to `main` (`dca8eda`).
 - **2026-09-07 — Step 10:** Added GitHub Actions Android CI, initial commit, and push to `https://github.com/mrvk2018/j.motors.git`. Local development phase complete.
 - **2026-09-07 — Step 9:** Added hands-free voice loop: `ChonikSttManager` (SpeechRecognizer, ru-RU free-form) and `ChonikTtsManager` (TextToSpeech, Locale ru). ViewModel speaks Gemini replies, drives `_audioAmplitude`, then restarts the mic. AR overlay unchanged aside from mic permission and status labels.
