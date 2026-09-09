@@ -20,8 +20,8 @@ object GeminiNetwork {
     /** User+model turns kept in the live chat cache (opening pair is always retained). */
     const val MAX_HISTORY_MESSAGES: Int = 28
 
-    /** Caps TTS length: Chonik must stay punchy, not essay-length. */
-    const val MAX_OUTPUT_TOKENS: Int = 160
+    /** Caps TTS length, with room for hidden [SET_CAR]/[SET_STATE] tags at the end. */
+    const val MAX_OUTPUT_TOKENS: Int = 220
 
     private const val TAG = "JMotors"
 

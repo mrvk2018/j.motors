@@ -17,370 +17,221 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.jmotors.domain.model.ai.ChonikEmotion
+import com.jmotors.domain.model.ai.SphereVisualState
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
- * Premium cyberpunk Unitree Go2 hologram: angular chassis, jointed legs, sensor head,
- * BlurMaskFilter neon glow, mouth lip-sync from [audioAmplitude].
+ * Central AI orb for XREAL SBS: emissive neon core, bloom halo, slow breath.
+ * [highlightShift] is −1 (left eye) / +1 (right eye) so the specular has volume.
  */
 @Composable
 fun ChonikAvatar(
-    emotion: ChonikEmotion,
+    visualState: SphereVisualState,
     modifier: Modifier = Modifier,
     audioAmplitude: Float = 0f,
-    size: Dp = 176.dp,
+    highlightShift: Float = 0f,
+    size: Dp = 132.dp,
 ) {
     val coreColor by animateColorAsState(
-        targetValue = emotion.coreColor(),
-        animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing),
-        label = "chonikCoreColor",
+        targetValue = visualState.coreColor(),
+        animationSpec = tween(durationMillis = 520, easing = FastOutSlowInEasing),
+        label = "sphereCore",
     )
     val glowColor by animateColorAsState(
-        targetValue = emotion.glowColor(),
-        animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing),
-        label = "chonikGlowColor",
+        targetValue = visualState.glowColor(),
+        animationSpec = tween(durationMillis = 520, easing = FastOutSlowInEasing),
+        label = "sphereGlow",
     )
 
-    val breathTransition = rememberInfiniteTransition(label = "chonikHolo")
-    val breathScale by breathTransition.animateFloat(
-        initialValue = 0.985f,
-        targetValue = 1.025f,
+    val breath = rememberInfiniteTransition(label = "sphereBreath")
+    val breathScale by breath.animateFloat(
+        initialValue = 0.96f,
+        targetValue = 1.05f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2100, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 2800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse,
         ),
-        label = "chonikBreathScale",
+        label = "sphereScale",
     )
-    val scan by breathTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 12f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2400, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "chonikScan",
-    )
-    val glowPulse by breathTransition.animateFloat(
-        initialValue = 0.62f,
+    val glowPulse by breath.animateFloat(
+        initialValue = 0.72f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 2800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse,
         ),
-        label = "chonikGlowPulse",
+        label = "sphereGlowPulse",
+    )
+    val wave by breath.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1600, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "sphereWave",
+    )
+    val blink by breath.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 720, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "sphereBlink",
     )
 
+    val thinkingMix = if (visualState == SphereVisualState.THINKING) blink else 0f
+    val displayCore = lerp(coreColor, Color.White, thinkingMix * 0.72f)
+    val displayGlow = lerp(glowColor, Color.White, thinkingMix * 0.45f)
     val amplitude = audioAmplitude.coerceIn(0f, 1f)
+    val liveScale = breathScale + amplitude * 0.045f
 
     Canvas(
         modifier = modifier
-            .size(width = size * 1.62f, height = size)
-            .scale(breathScale),
+            .size(size)
+            .scale(liveScale),
     ) {
-        drawGo2Wireframe(
-            neon = coreColor,
-            glow = glowColor,
+        drawAiSphere(
+            core = displayCore,
+            glow = displayGlow,
             pulse = glowPulse,
-            scan = scan,
+            wave = wave,
+            thinking = visualState == SphereVisualState.THINKING,
+            highlightShift = highlightShift,
             amplitude = amplitude,
         )
     }
 }
 
-private fun DrawScope.drawGo2Wireframe(
-    neon: Color,
+private fun DrawScope.drawAiSphere(
+    core: Color,
     glow: Color,
     pulse: Float,
-    scan: Float,
+    wave: Float,
+    thinking: Boolean,
+    highlightShift: Float,
     amplitude: Float,
 ) {
-    val w = size.width
-    val h = size.height
-    fun p(nx: Float, ny: Float) = Offset(nx * w, ny * h)
+    val c = Offset(size.width * 0.5f, size.height * 0.5f)
+    val radius = size.minDimension * 0.28f
+    val bloom = 0.55f + pulse * 0.45f + amplitude * 0.15f
 
-    var y = scan % 9f
-    while (y < h) {
-        drawLine(
-            color = neon.copy(alpha = 0.055f * pulse),
-            start = Offset(0f, y),
-            end = Offset(w, y),
-            strokeWidth = 1.05f,
-        )
-        y += 9f
-    }
+    glowDisk(c, radius * 2.35f, glow.copy(alpha = 0.18f * bloom), blur = 42f)
+    glowDisk(c, radius * 1.55f, glow.copy(alpha = 0.32f * bloom), blur = 22f)
+    glowDisk(c, radius * 1.12f, core.copy(alpha = 0.55f * bloom), blur = 10f)
 
-    val chassis = Path().apply {
-        moveTo(p(0.20f, 0.40f).x, p(0.20f, 0.40f).y)
-        lineTo(p(0.28f, 0.30f).x, p(0.28f, 0.30f).y)
-        lineTo(p(0.66f, 0.28f).x, p(0.66f, 0.28f).y)
-        lineTo(p(0.74f, 0.36f).x, p(0.74f, 0.36f).y)
-        lineTo(p(0.72f, 0.52f).x, p(0.72f, 0.52f).y)
-        lineTo(p(0.64f, 0.58f).x, p(0.64f, 0.58f).y)
-        lineTo(p(0.26f, 0.58f).x, p(0.26f, 0.58f).y)
-        lineTo(p(0.18f, 0.50f).x, p(0.18f, 0.50f).y)
-        close()
-    }
-    drawPath(chassis, glow.copy(alpha = 0.10f * pulse), style = Fill)
-    glowPath(chassis, glow.copy(alpha = 0.85f * pulse), width = 11f, blur = 22f)
-    glowPath(chassis, neon, width = 2.4f, blur = 1.2f)
-
-    // Deck seams / battery bay
-    glowLine(p(0.24f, 0.44f), p(0.70f, 0.42f), neon, glow, pulse, 2f)
-    glowLine(p(0.30f, 0.34f), p(0.30f, 0.56f), neon, glow, pulse, 1.6f)
-    glowLine(p(0.48f, 0.30f), p(0.46f, 0.56f), neon, glow, pulse, 1.6f)
-    glowLine(p(0.62f, 0.32f), p(0.62f, 0.54f), neon, glow, pulse, 1.6f)
-    val xBrace = Path().apply {
-        moveTo(p(0.32f, 0.36f).x, p(0.32f, 0.36f).y)
-        lineTo(p(0.58f, 0.52f).x, p(0.58f, 0.52f).y)
-        moveTo(p(0.58f, 0.34f).x, p(0.58f, 0.34f).y)
-        lineTo(p(0.34f, 0.52f).x, p(0.34f, 0.52f).y)
-    }
-    glowPath(xBrace, neon.copy(alpha = 0.7f), width = 1.5f, blur = 8f)
-
-    // LiDAR turret
-    val lidar = p(0.46f, 0.26f)
-    glowCircle(lidar, w * 0.055f, neon, glow, pulse)
-    glowCircle(lidar, w * 0.028f, neon, glow, pulse)
-    drawCircle(color = neon.copy(alpha = 0.35f * pulse), radius = w * 0.012f, center = lidar)
-
-    // Neck + angular sensor head
-    glowLine(p(0.72f, 0.38f), p(0.80f, 0.30f), neon, glow, pulse, 2.4f)
-    val head = Path().apply {
-        moveTo(p(0.78f, 0.22f).x, p(0.78f, 0.22f).y)
-        lineTo(p(0.90f, 0.20f).x, p(0.90f, 0.20f).y)
-        lineTo(p(0.96f, 0.28f).x, p(0.96f, 0.28f).y)
-        lineTo(p(0.94f, 0.38f).x, p(0.94f, 0.38f).y)
-        lineTo(p(0.82f, 0.40f).x, p(0.82f, 0.40f).y)
-        lineTo(p(0.76f, 0.32f).x, p(0.76f, 0.32f).y)
-        close()
-    }
-    drawPath(head, glow.copy(alpha = 0.12f * pulse), style = Fill)
-    glowPath(head, glow.copy(alpha = 0.9f * pulse), width = 10f, blur = 18f)
-    glowPath(head, neon, width = 2.2f, blur = 1.1f)
-
-    // Visor slit
-    glowLine(p(0.84f, 0.27f), p(0.94f, 0.26f), neon, glow, pulse, 3.2f)
-    glowLine(p(0.85f, 0.31f), p(0.93f, 0.30f), neon.copy(alpha = 0.7f), glow, pulse, 1.4f)
-    // Ears / antennas
-    glowLine(p(0.80f, 0.22f), p(0.77f, 0.10f), neon, glow, pulse, 2f)
-    glowLine(p(0.84f, 0.20f), p(0.86f, 0.08f), neon, glow, pulse, 1.6f)
-    glowCircle(p(0.77f, 0.10f), 3.2f, neon, glow, pulse)
-    glowCircle(p(0.86f, 0.08f), 2.4f, neon, glow, pulse)
-    // Rear antenna
-    glowLine(p(0.22f, 0.38f), p(0.10f, 0.18f), neon, glow, pulse, 1.8f)
-    glowLine(p(0.10f, 0.18f), p(0.14f, 0.14f), neon, glow, pulse, 1.4f)
-    glowCircle(p(0.14f, 0.14f), 3f, neon, glow, pulse)
-
-    drawGo2Leg(
-        hip = p(0.30f, 0.56f),
-        mid = p(0.22f, 0.74f),
-        ankle = p(0.26f, 0.90f),
-        foot = p(0.30f, 0.94f),
-        neon, glow, pulse, w,
-    )
-    drawGo2Leg(
-        hip = p(0.36f, 0.57f),
-        mid = p(0.38f, 0.76f),
-        ankle = p(0.36f, 0.91f),
-        foot = p(0.40f, 0.95f),
-        neon, glow, pulse, w,
-    )
-    drawGo2Leg(
-        hip = p(0.58f, 0.56f),
-        mid = p(0.60f, 0.74f),
-        ankle = p(0.56f, 0.90f),
-        foot = p(0.60f, 0.94f),
-        neon, glow, pulse, w,
-    )
-    drawGo2Leg(
-        hip = p(0.66f, 0.54f),
-        mid = p(0.74f, 0.72f),
-        ankle = p(0.70f, 0.89f),
-        foot = p(0.74f, 0.94f),
-        neon, glow, pulse, w,
-    )
-
-    // Hydraulic traces
-    glowLine(p(0.30f, 0.56f), p(0.22f, 0.74f), neon.copy(alpha = 0.45f), glow, pulse, 1.1f)
-    glowLine(p(0.66f, 0.54f), p(0.74f, 0.72f), neon.copy(alpha = 0.45f), glow, pulse, 1.1f)
-
-    val mouth = p(0.95f, 0.33f)
-    val mouthRadius = 3.4f + amplitude * 12f
-    glowCircle(mouth, mouthRadius * 2.6f, Color.White.copy(alpha = 0.25f + amplitude * 0.5f), glow, pulse)
     drawCircle(
-        color = neon.copy(alpha = 0.40f + amplitude * 0.60f),
-        radius = mouthRadius,
-        center = mouth,
-    )
-    drawCircle(
-        color = Color.White.copy(alpha = 0.40f + amplitude * 0.60f),
-        radius = mouthRadius * 0.34f,
-        center = mouth,
-    )
-    // Pulse ring
-    val ring = 2f + amplitude * 10f
-    drawCircle(
-        color = neon.copy(alpha = 0.18f + amplitude * 0.35f),
-        radius = mouthRadius + ring,
-        center = mouth,
-        style = Stroke(width = 1.3f + amplitude * 1.8f),
-    )
-}
-
-private fun DrawScope.drawGo2Leg(
-    hip: Offset,
-    mid: Offset,
-    ankle: Offset,
-    foot: Offset,
-    neon: Color,
-    glow: Color,
-    pulse: Float,
-    w: Float,
-) {
-    val thigh = Path().apply {
-        moveTo(hip.x, hip.y)
-        lineTo(mid.x, mid.y)
-    }
-    val shank = Path().apply {
-        moveTo(mid.x, mid.y)
-        lineTo(ankle.x, ankle.y)
-        lineTo(foot.x, foot.y)
-    }
-    glowPath(thigh, glow.copy(alpha = 0.8f * pulse), width = 9f, blur = 16f)
-    glowPath(thigh, neon, width = 2.6f, blur = 1.2f)
-    glowPath(shank, glow.copy(alpha = 0.8f * pulse), width = 8f, blur = 14f)
-    glowPath(shank, neon, width = 2.3f, blur = 1.1f)
-    // Parallel actuator
-    val ox = (mid.x - hip.x) * 0.12f
-    val oy = (mid.y - hip.y) * 0.12f
-    glowLine(
-        Offset(hip.x + oy, hip.y - ox),
-        Offset(mid.x + oy, mid.y - ox),
-        neon.copy(alpha = 0.55f),
-        glow,
-        pulse,
-        1.2f,
-    )
-    glowCircle(hip, w * 0.028f, neon, glow, pulse)
-    glowCircle(mid, w * 0.022f, neon, glow, pulse)
-    glowCircle(ankle, w * 0.018f, neon, glow, pulse)
-    val pad = Path().apply {
-        addRect(
-            androidx.compose.ui.geometry.Rect(
-                left = foot.x - w * 0.03f,
-                top = foot.y - 2f,
-                right = foot.x + w * 0.04f,
-                bottom = foot.y + h * 0.025f,
+        brush = Brush.radialGradient(
+            colorStops = arrayOf(
+                0.00f to Color.White.copy(alpha = 0.95f),
+                0.18f to lerp(core, Color.White, 0.55f),
+                0.52f to core,
+                0.82f to glow.copy(alpha = 0.92f),
+                1.00f to Color.Black.copy(alpha = 0.35f),
             ),
-        )
+            center = c + Offset(highlightShift * radius * 0.18f, -radius * 0.16f),
+            radius = radius * 1.12f,
+        ),
+        radius = radius,
+        center = c,
+    )
+
+    val rim = radius * (0.92f + pulse * 0.04f)
+    drawCircle(
+        color = core.copy(alpha = 0.55f + pulse * 0.35f),
+        radius = rim,
+        center = c,
+        style = Stroke(width = 2.4f + pulse * 1.4f),
+    )
+
+    val spec = c + Offset(highlightShift * radius * 0.38f, -radius * 0.34f)
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(Color.White.copy(alpha = 0.85f), Color.Transparent),
+            center = spec,
+            radius = radius * 0.34f,
+        ),
+        radius = radius * 0.34f,
+        center = spec,
+    )
+
+    if (thinking) {
+        val ringCount = 3
+        repeat(ringCount) { i ->
+            val t = (wave + i / ringCount.toFloat()) % 1f
+            val rr = radius * (0.35f + t * 0.95f)
+            val a = (1f - t) * 0.55f
+            drawCircle(
+                color = lerp(core, Color.White, (sin(t * Math.PI.toFloat()) * 0.5f + 0.5f)).copy(alpha = a),
+                radius = rr,
+                center = c,
+                style = Stroke(width = 2.2f * (1f - t * 0.6f)),
+            )
+        }
+        val sweep = wave * (Math.PI * 2.0).toFloat()
+        val arc = Offset(c.x + cos(sweep) * radius * 0.72f, c.y + sin(sweep) * radius * 0.72f)
+        glowDisk(arc, radius * 0.16f, Color.White.copy(alpha = 0.55f), blur = 12f)
     }
-    glowPath(pad, neon, width = 1.8f, blur = 6f)
 }
 
-private val DrawScope.h: Float get() = size.height
-
-private fun DrawScope.glowLine(
-    start: Offset,
-    end: Offset,
-    neon: Color,
-    glow: Color,
-    pulse: Float,
-    width: Float,
-) {
-    val path = Path().apply {
-        moveTo(start.x, start.y)
-        lineTo(end.x, end.y)
-    }
-    glowPath(path, glow.copy(alpha = 0.75f * pulse), width = width * 3.4f, blur = 14f + width)
-    drawLine(color = neon.copy(alpha = 0.95f), start = start, end = end, strokeWidth = width, cap = StrokeCap.Round)
-}
-
-private fun DrawScope.glowCircle(
+private fun DrawScope.glowDisk(
     center: Offset,
     radius: Float,
-    neon: Color,
-    glow: Color,
-    pulse: Float,
-) {
-    val path = Path().apply {
-        addOval(
-            androidx.compose.ui.geometry.Rect(
-                left = center.x - radius,
-                top = center.y - radius,
-                right = center.x + radius,
-                bottom = center.y + radius,
-            ),
-        )
-    }
-    glowPath(path, glow.copy(alpha = 0.8f * pulse), width = 7f, blur = 16f)
-    drawCircle(color = neon, radius = radius, center = center, style = Stroke(width = 1.8f))
-    drawCircle(color = neon.copy(alpha = 0.9f), radius = radius * 0.28f, center = center)
-}
-
-private fun DrawScope.glowPath(
-    path: Path,
     color: Color,
-    width: Float,
     blur: Float,
 ) {
     drawIntoCanvas { canvas ->
         val paint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
-            style = AndroidPaint.Style.STROKE
-            strokeWidth = width
-            strokeCap = AndroidPaint.Cap.ROUND
-            strokeJoin = AndroidPaint.Join.ROUND
+            style = AndroidPaint.Style.FILL
             this.color = color.toArgb()
             maskFilter = BlurMaskFilter(blur.coerceAtLeast(0.5f), BlurMaskFilter.Blur.NORMAL)
         }
-        canvas.nativeCanvas.drawPath(path.asAndroidPath(), paint)
+        canvas.nativeCanvas.drawCircle(center.x, center.y, radius, paint)
     }
 }
 
-internal fun ChonikEmotion.coreColor(): Color = when (this) {
-    ChonikEmotion.CALM -> Color(0xFF00E5FF)
-    ChonikEmotion.JOY -> Color(0xFF00E676)
-    ChonikEmotion.WARNING -> Color(0xFFFFC107)
-    ChonikEmotion.SARCASM -> Color(0xFFFF1744)
-    ChonikEmotion.DELIGHT -> Color(0xFFE040FB)
+internal fun SphereVisualState.coreColor(): Color = when (this) {
+    SphereVisualState.IDLE -> Color(0xFF00F0FF)
+    SphereVisualState.THINKING -> Color(0xFFBD00FF)
+    SphereVisualState.SUCCESS -> Color(0xFF00FF66)
+    SphereVisualState.ERROR -> Color(0xFFFF3333)
 }
 
-internal fun ChonikEmotion.glowColor(): Color = when (this) {
-    ChonikEmotion.CALM -> Color(0xFF00BCD4)
-    ChonikEmotion.JOY -> Color(0xFF00C853)
-    ChonikEmotion.WARNING -> Color(0xFFFF9800)
-    ChonikEmotion.SARCASM -> Color(0xFFD50000)
-    ChonikEmotion.DELIGHT -> Color(0xFFAA00FF)
+internal fun SphereVisualState.glowColor(): Color = when (this) {
+    SphereVisualState.IDLE -> Color(0xFF00C6D6)
+    SphereVisualState.THINKING -> Color(0xFFE0B3FF)
+    SphereVisualState.SUCCESS -> Color(0xFF00C853)
+    SphereVisualState.ERROR -> Color(0xFFFF6B35)
 }
 
-internal fun ChonikEmotion.highlightColor(): Color = when (this) {
-    ChonikEmotion.CALM -> Color(0xFFB2EBF2)
-    ChonikEmotion.JOY -> Color(0xFFB9F6CA)
-    ChonikEmotion.WARNING -> Color(0xFFFFF8E1)
-    ChonikEmotion.SARCASM -> Color(0xFFFFCDD2)
-    ChonikEmotion.DELIGHT -> Color(0xFFF8BBD0)
+internal fun SphereVisualState.highlightColor(): Color = when (this) {
+    SphereVisualState.IDLE -> Color(0xFFB8FBFF)
+    SphereVisualState.THINKING -> Color(0xFFFFFFFF)
+    SphereVisualState.SUCCESS -> Color(0xFFB9F6CA)
+    SphereVisualState.ERROR -> Color(0xFFFFCDD2)
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF050510)
+@Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
-private fun ChonikAvatarCalmPreview() {
-    ChonikAvatar(emotion = ChonikEmotion.CALM)
+private fun SphereIdlePreview() {
+    ChonikAvatar(visualState = SphereVisualState.IDLE)
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF050510)
+@Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
-private fun ChonikAvatarSpeakingPreview() {
-    ChonikAvatar(emotion = ChonikEmotion.JOY, audioAmplitude = 0.7f)
+private fun SphereThinkingPreview() {
+    ChonikAvatar(visualState = SphereVisualState.THINKING, audioAmplitude = 0.4f)
 }

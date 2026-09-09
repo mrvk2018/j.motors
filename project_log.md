@@ -2,19 +2,21 @@
 
 ## Current Status
 
-- **Step:** 13 — MVP bugfix pack (local, staged, not pushed)
-- **Phase:** Chat memory + short TTS + full-bleed SBS + detailed Go2
+- **Step:** 17 — Filament 3D particle materialize (no Compose overlay)
+- **Phase:** MVP demo funnel
 - **Done:**
-  - Gemini session cache: full `contents` history, not isolated prompts
-  - System prompt: 2–3 short sentences, energetic robo-dog
-  - SBS viewport fills the display (letterbox/каше removed)
-  - Unitree Go2 wireframe with BlurMaskFilter glow and amplitude lip-sync
-  - Funnel facts (name, visa, budget, credit) extracted from STT into `UserProfile` / `ChonikState`
-- **Not done:** git push; real backend lead API
+  - 4-stage Gemini system prompt (name → Avante/Sonata/Santa Fe → cash/credit+visa+взнос → Suwon + transfer)
+  - Hidden `[SET_CAR:…]` / `[SET_STATE:…]` tags parsed in ViewModel, stripped before TTS
+  - `ClientProfile` snapshot written as JSON under `filesDir/leads/` for Suwon
+  - Gradle task `:app:downloadCarModels` fills `assets/models/cars/{avante,sonata,santa_fe}.glb`
+- **Not done:** live Suwon HTTP API; CI APK is manual (`workflow_dispatch` only)
 - **Context:** `.cursorrules` is the source of truth for J Motors identity, stack, and Чоник persona/conversation flow
 
 ## Action History
 
+- **2026-09-09 — CI:** Replaced auto-on-push Android workflow with manual `workflow_dispatch` only (`android-build.yml`).
+- **2026-09-09 — Step 16:** SET_CAR materializes the GLB: TransformManager scale 0.001→1, Compose neon particles (burst then collapse), then 42s Y idle. Version `0.8.0` (versionCode 9).
+- **2026-09-08 — Step 14:** Refactored the SBS showroom for the XREAL MVP demo: deleted eco-city pool + Go2 wireframe, pitch-black passthrough, glowing AI orb with color state machine, Filament `loadCarModel()` for a mid-air rotating GLB (local assets or Khronos CDN). Version `0.6.0` (versionCode 7).
 - **2026-09-08 — Step 13:** Packaged MVP fix (staged, no push): Gemini chat history session, brevity system prompt, full-bleed SBS (no letterbox), detailed Go2 hologram with BlurMaskFilter, STT → funnel fact extractor (name / F-4 H-2 E-9 G-1 / budget / credit).
 - **2026-09-07 — Step 11 hotfix:** Voice loop: STT heard «меня зовут Влад» but Gemini died in <1s (CI APK baked `MOCK_KEY_FOR_BUILD`). Errors were not shown. Stopped calling `SpeechRecognizer.stopListening()` after `onResults` (that caused ERROR_CLIENT 5 and a STT retry). Surface Gemini errors on the plate and in logcat.
 - **2026-09-07 — Step 11:** Replaced ARCore camera/planes with native stereoscopic SBS 3D. Screen splits left/right for XREAL Air 2 Pro. Eco-city background uses uncrossed parallax (far); `ChonikAvatar` + holographic dialogue use crossed parallax (near). Radial highlight on the sphere shifts left/right per eye so the orb has volume. Manifest no longer requires camera/ARCore; `com.google.ar:core` removed. Version `0.5.0` (versionCode 5).

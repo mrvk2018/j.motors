@@ -9,7 +9,8 @@ import androidx.compose.material3.MaterialTheme
 import com.jmotors.presentation.ar.ArShowroomScreen
 
 /**
- * Entry: landscape SBS 3D showroom for XREAL Air 2 Pro with holographic Чоник (Go2).
+ * Entry: landscape SBS 3D showroom for XREAL Air 2 Pro —
+ * pitch-black passthrough, glowing AI sphere, floating car.
  */
 class MainActivity : ComponentActivity() {
 

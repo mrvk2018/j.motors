@@ -1,0 +1,9 @@
+Inventory GLB files for the XREAL showroom.
+
+  avante.glb   — sedan class (Hyundai Avante stand-in)
+  sonata.glb   — business / sport sedan (Sonata stand-in)
+  santa_fe.glb — SUV / crossover (Santa Fe stand-in)
+
+Populate with:  ./gradlew :app:downloadCarModels
+(also runs automatically before preBuild). Production should replace these
+Khronos / three.js PBR samples with licensed J Motors inventory models.

@@ -8,7 +8,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -38,11 +37,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -51,14 +47,20 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.jmotors.domain.model.ai.ChonikEmotion
 import com.jmotors.domain.model.ai.ChonikState
+import com.jmotors.domain.model.ai.SphereVisualState
+import com.jmotors.presentation.ar.car.FloatingCarShowcase
+import com.jmotors.presentation.ar.car.CarModelLoader
 import com.jmotors.presentation.chonik.ChonikAvatar
 import com.jmotors.presentation.chonik.glowColor
 import com.jmotors.presentation.chonik.highlightColor
 import com.jmotors.presentation.viewmodel.ChonikViewModel
+import java.nio.ByteBuffer
 
 private const val HANDOVER_TAG = "JMotors"
+
+/** Absolute black — XREAL Air 2 Pro treats this as optical passthrough. */
+private val PassthroughBlack = Color(0xFF000000)
 
 /** Left / right halves of the XREAL SBS framebuffer. */
 private enum class StereoEye {
@@ -67,7 +69,7 @@ private enum class StereoEye {
 }
 
 /**
- * Native SBS 3D showroom: full-bleed halves on XREAL, Solarpunk far, Go2 hologram near.
+ * Native SBS 3D showroom: pitch-black passthrough, glowing AI sphere, floating car.
  */
 @Composable
 fun ArShowroomScreen(
@@ -75,9 +77,8 @@ fun ArShowroomScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val sessionBackground = remember { EcoBackgroundPool.pickSessionBackground() }
 
-    val emotion by viewModel.emotion.collectAsStateWithLifecycle()
+    val visualState by viewModel.sphereVisualState.collectAsStateWithLifecycle()
     val audioAmplitude by viewModel.audioAmplitude.collectAsStateWithLifecycle()
     val assistantReply by viewModel.assistantReply.collectAsStateWithLifecycle()
     val chonikState by viewModel.state.collectAsStateWithLifecycle()
@@ -86,6 +87,26 @@ fun ArShowroomScreen(
     val isListening by viewModel.isListening.collectAsStateWithLifecycle()
     val isSpeaking by viewModel.isSpeaking.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+    val carType by viewModel.carType.collectAsStateWithLifecycle()
+    val carRevealNonce by viewModel.carRevealNonce.collectAsStateWithLifecycle()
+
+    var carBytes by remember { mutableStateOf<ByteBuffer?>(null) }
+    var carLoadFailed by remember { mutableStateOf(false) }
+
+    LaunchedEffect(carType) {
+        carLoadFailed = false
+        runCatching { CarModelLoader.fetchCarModel(context, carType) }
+            .onSuccess { buffer ->
+                carBytes = buffer
+                carLoadFailed = false
+                Log.i(HANDOVER_TAG, "Showroom car ready: ${CarModelLoader.loadCarModel(carType).carType}")
+            }
+            .onFailure { error ->
+                Log.e(HANDOVER_TAG, "Showroom car load failed: ${error.message}", error)
+                carBytes = null
+                carLoadFailed = true
+            }
+    }
 
     var hasAudioPermission by remember {
         mutableStateOf(context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
@@ -155,23 +176,27 @@ fun ArShowroomScreen(
         return
     }
 
-    Row(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+    Row(modifier = Modifier.fillMaxSize().background(PassthroughBlack)) {
         StereoEyePane(
             eye = StereoEye.LEFT,
-            backgroundRes = sessionBackground,
-            emotion = emotion,
+            visualState = visualState,
             audioAmplitude = audioAmplitude,
             dialogueText = dialogueText,
             statusText = statusText,
+            carBytes = carBytes,
+            carLoadFailed = carLoadFailed,
+            carRevealNonce = carRevealNonce,
             modifier = Modifier.weight(1f).fillMaxHeight(),
         )
         StereoEyePane(
             eye = StereoEye.RIGHT,
-            backgroundRes = sessionBackground,
-            emotion = emotion,
+            visualState = visualState,
             audioAmplitude = audioAmplitude,
             dialogueText = dialogueText,
             statusText = statusText,
+            carBytes = carBytes,
+            carLoadFailed = carLoadFailed,
+            carRevealNonce = carRevealNonce,
             modifier = Modifier.weight(1f).fillMaxHeight(),
         )
     }
@@ -180,45 +205,68 @@ fun ArShowroomScreen(
 @Composable
 private fun StereoEyePane(
     eye: StereoEye,
-    backgroundRes: Int,
-    emotion: ChonikEmotion,
+    visualState: SphereVisualState,
     audioAmplitude: Float,
     dialogueText: String,
     statusText: String,
+    carBytes: ByteBuffer?,
+    carLoadFailed: Boolean,
+    carRevealNonce: Int,
     modifier: Modifier = Modifier,
 ) {
-    val cityParallax = stereoOffset(eye, far = true, amount = CITY_PARALLAX)
-    val avatarParallax = stereoOffset(eye, far = false, amount = AVATAR_PARALLAX)
+    val sphereParallax = stereoOffset(eye, far = false, amount = SPHERE_PARALLAX)
+    val carParallax = stereoOffset(eye, far = false, amount = CAR_PARALLAX)
     val plateParallax = stereoOffset(eye, far = false, amount = DIALOGUE_PARALLAX)
     val statusParallax = stereoOffset(eye, far = false, amount = STATUS_PARALLAX)
+    val highlightShift = if (eye == StereoEye.LEFT) -1f else 1f
 
-    Box(modifier = modifier.fillMaxSize().clipToBounds()) {
-        SolarpunkBackdrop(backgroundRes = backgroundRes, horizontalOffset = cityParallax)
-
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .clipToBounds()
+            .background(PassthroughBlack),
+    ) {
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = avatarParallax)
+                .offset(x = sphereParallax)
                 .widthIn(max = 360.dp)
                 .padding(horizontal = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             ChonikAvatar(
-                emotion = emotion,
+                visualState = visualState,
                 audioAmplitude = audioAmplitude,
-                size = 176.dp,
+                highlightShift = highlightShift,
+                size = 128.dp,
             )
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(168.dp)
+                    .offset(x = carParallax - sphereParallax),
+                contentAlignment = Alignment.Center,
+            ) {
+                FloatingCarShowcase(
+                    modelBytes = carBytes,
+                    loadFailed = carLoadFailed,
+                    isLeftEye = eye == StereoEye.LEFT,
+                    revealNonce = carRevealNonce,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
             HolographicPlate(
                 text = dialogueText,
-                emotion = emotion,
-                modifier = Modifier.offset(x = plateParallax - avatarParallax),
+                visualState = visualState,
+                modifier = Modifier.offset(x = plateParallax - sphereParallax),
             )
         }
 
         HolographicPlate(
             text = statusText,
-            emotion = emotion,
+            visualState = visualState,
             compact = true,
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -229,46 +277,19 @@ private fun StereoEyePane(
 }
 
 @Composable
-private fun SolarpunkBackdrop(
-    backgroundRes: Int,
-    horizontalOffset: Dp,
-) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Image(
-            painter = painterResource(id = backgroundRes),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            alignment = Alignment.Center,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = 1.16f
-                    scaleY = 1.16f
-                    translationX = horizontalOffset.toPx()
-                },
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFF03181C).copy(alpha = 0.18f)),
-        )
-    }
-}
-
-@Composable
 private fun HolographicPlate(
     text: String,
-    emotion: ChonikEmotion,
+    visualState: SphereVisualState,
     modifier: Modifier = Modifier,
     compact: Boolean = false,
 ) {
     val neon by animateColorAsState(
-        targetValue = emotion.glowColor(),
+        targetValue = visualState.glowColor(),
         animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing),
         label = "holoBorder",
     )
     val inner by animateColorAsState(
-        targetValue = emotion.highlightColor(),
+        targetValue = visualState.highlightColor(),
         animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing),
         label = "holoInner",
     )
@@ -298,7 +319,7 @@ private fun PermissionGate(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF050510))
+            .background(PassthroughBlack)
             .padding(24.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -315,7 +336,8 @@ private fun PermissionGate(
 }
 
 /**
- * @param far true = uncrossed (city recedes); false = crossed (hologram pops toward the user).
+ * @param far true = uncrossed (recedes); false = crossed (pops toward the user).
+ * Sphere uses a modest crossed offset so the orb sits at a comfortable optical Z.
  */
 private fun stereoOffset(eye: StereoEye, far: Boolean, amount: Dp): Dp {
     val leftward = if (eye == StereoEye.LEFT) -1 else 1
@@ -323,7 +345,7 @@ private fun stereoOffset(eye: StereoEye, far: Boolean, amount: Dp): Dp {
     return amount * direction
 }
 
-private val CITY_PARALLAX = 10.dp
-private val AVATAR_PARALLAX = 20.dp
+private val SPHERE_PARALLAX = 12.dp
+private val CAR_PARALLAX = 14.dp
 private val DIALOGUE_PARALLAX = 16.dp
 private val STATUS_PARALLAX = 11.dp
